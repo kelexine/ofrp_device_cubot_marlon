@@ -1,0 +1,216 @@
+name: OrangeFox Recovery Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      MANIFEST_URL:
+        description: 'OrangeFox Manifest URL'
+        required: true
+        default: 'https://gitlab.com/OrangeFox/manifest.git'
+      MANIFEST_BRANCH:
+        description: 'OrangeFox Manifest Branch'
+        required: true
+        default: 'fox_12.1'
+      DEVICE_TREE_URL:
+        description: 'Device Tree Git Repository URL'
+        required: true
+        default: 'https://github.com/kelexine/ofrp-marlon'
+      DEVICE_TREE_BRANCH:
+        description: 'Device Tree Branch'
+        required: true
+        default: 'main'
+      DEVICE_PATH:
+        description: 'Device Tree Target Path'
+        required: true
+        default: 'device/cubot/marlon'
+      DEVICE_NAME:
+        description: 'Device Codename'
+        required: true
+        default: 'marlon'
+      MAKEFILE_NAME:
+        description: 'Device Product Makefile Name'
+        required: true
+        default: 'ofox_marlon'
+      BUILD_TARGET:
+        description: 'Build Target'
+        required: true
+        default: 'recovery'
+
+jobs:
+  build:
+    name: Build OrangeFox Recovery
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Display Build Parameters
+        run: |
+          echo "=========================================================="
+          echo "Building OrangeFox Recovery for Cubot P50 (marlon)"
+          echo "Manifest URL       : ${{ github.event.inputs.MANIFEST_URL }}"
+          echo "Manifest Branch    : ${{ github.event.inputs.MANIFEST_BRANCH }}"
+          echo "Device Tree URL    : ${{ github.event.inputs.DEVICE_TREE_URL }}"
+          echo "Device Tree Branch : ${{ github.event.inputs.DEVICE_TREE_BRANCH }}"
+          echo "Device Path        : ${{ github.event.inputs.DEVICE_PATH }}"
+          echo "Device Name        : ${{ github.event.inputs.DEVICE_NAME }}"
+          echo "Product Makefile   : ${{ github.event.inputs.MAKEFILE_NAME }}"
+          echo "Build Target       : ${{ github.event.inputs.BUILD_TARGET }}image"
+          echo "Triggered by       : ${{ github.actor }}"
+          echo "Run ID             : ${{ github.run_id }}"
+          echo "=========================================================="
+
+      - name: Check Out Repository
+        uses: actions/checkout@v4
+
+      - name: Free Disk Space
+        run: |
+          echo "Reclaiming disk space on runner..."
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/boost "$AGENT_TOOLSDIRECTORY" || true
+          sudo docker image prune --all --force || true
+          sudo apt-get clean
+          df -h
+
+      - name: Set Swap Space
+        uses: pierotofy/set-swap-space@master
+        with:
+          swap-size-gb: 16
+
+      - name: Set up Build Environment
+        run: |
+          sudo apt-get update -yq
+          DEBIAN_FRONTEND=noninteractive sudo apt-get install -yq --no-install-recommends \
+              bc bison build-essential ccache curl flex g++-multilib gcc-multilib git gnupg gperf \
+              imagemagick lib32ncurses-dev lib32readline-dev lib32z1-dev libelf-dev liblz4-tool \
+              libncurses6 libncurses-dev libsdl1.2-dev libssl-dev libxml2 libxml2-utils lzop \
+              pngcrush rsync schedtool squashfs-tools xsltproc zip zlib1g-dev python3 tar openjdk-11-jdk
+          sudo update-java-alternatives -s java-1.11.0-openjdk-amd64 || true
+
+      - name: Install Google Repo Tool
+        run: |
+          mkdir -p ~/.bin
+          curl -s https://storage.googleapis.com/git-repo-downloads/repo > ~/.bin/repo
+          chmod a+x ~/.bin/repo
+          sudo ln -sf ~/.bin/repo /usr/local/bin/repo
+
+      - name: Initialize OrangeFox Workspace
+        run: |
+          mkdir -p workspace
+          cd workspace
+          git config --global user.name "kelexine"
+          git config --global user.email "frankiekelechi@gmail.com"
+          git config --global color.ui false
+          repo init --depth=1 -u ${{ github.event.inputs.MANIFEST_URL }} -b ${{ github.event.inputs.MANIFEST_BRANCH }}
+          echo "WORKSPACE=$(pwd)" >> $GITHUB_ENV
+
+      - name: Sync Source Tree
+        run: |
+          repo sync -c --no-clone-bundle --no-tags --optimized-fetch --prune --force-sync -j$(nproc --all)
+        working-directory: ${{ env.WORKSPACE }}
+
+      - name: Clone Device Tree
+        run: |
+          rm -rf ./${{ github.event.inputs.DEVICE_PATH }}
+          git clone --depth=1 ${{ github.event.inputs.DEVICE_TREE_URL }} -b ${{ github.event.inputs.DEVICE_TREE_BRANCH }} ./${{ github.event.inputs.DEVICE_PATH }}
+        working-directory: ${{ env.WORKSPACE }}
+
+      - name: Compile Recovery Image
+        run: |
+          source build/envsetup.sh
+          export ALLOW_MISSING_DEPENDENCIES=true
+          export LC_ALL="C"
+          export FOX_BUILD_DEVICE="${{ github.event.inputs.DEVICE_NAME }}"
+          lunch ${{ github.event.inputs.MAKEFILE_NAME }}-eng
+          mka adbd ${{ github.event.inputs.BUILD_TARGET }}image -j$(nproc --all)
+        working-directory: ${{ env.WORKSPACE }}
+
+      - name: Package Artifacts & Checksums
+        id: package
+        run: |
+          OUT_DIR="${{ env.WORKSPACE }}/out/target/product/${{ github.event.inputs.DEVICE_NAME }}"
+          DIST_DIR="${{ github.workspace }}/artifacts"
+          mkdir -p "$DIST_DIR"
+
+          # Copy OrangeFox flashable zips if present
+          find "$OUT_DIR" -maxdepth 2 -type f -name "OrangeFox-*.zip" -exec cp {} "$DIST_DIR/" \; || true
+
+          # Copy Recovery Image
+          if [ -f "$OUT_DIR/recovery.img" ]; then
+              cp "$OUT_DIR/recovery.img" "$DIST_DIR/OrangeFox-${{ github.event.inputs.DEVICE_NAME }}-$(date +'%Y%m%d').img"
+              cp "$OUT_DIR/recovery.img" "$DIST_DIR/recovery.img"
+          elif [ -f "$OUT_DIR/boot.img" ]; then
+              cp "$OUT_DIR/boot.img" "$DIST_DIR/OrangeFox-boot-${{ github.event.inputs.DEVICE_NAME }}-$(date +'%Y%m%d').img"
+              cp "$OUT_DIR/boot.img" "$DIST_DIR/recovery.img"
+          else
+              echo "Error: Output recovery image not found in $OUT_DIR"
+              exit 1
+          fi
+
+          cd "$DIST_DIR"
+          tar -czvf "OrangeFox-${{ github.event.inputs.DEVICE_NAME }}-fastboot.tar.gz" recovery.img
+
+          md5sum *.img *.tar.gz *.zip > MD5SUMS.txt 2>/dev/null || md5sum *.img *.tar.gz > MD5SUMS.txt
+          sha256sum *.img *.tar.gz *.zip > SHA256SUMS.txt 2>/dev/null || sha256sum *.img *.tar.gz > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+          echo "RELEASE_TAG=OFRP-v12.1-$(date +'%Y%m%d')-${{ github.run_id }}" >> $GITHUB_ENV
+          echo "BUILD_DATE=$(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_ENV
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ${{ github.workspace }}/artifacts/*.zip
+            ${{ github.workspace }}/artifacts/*.img
+            ${{ github.workspace }}/artifacts/*.tar.gz
+            ${{ github.workspace }}/artifacts/MD5SUMS.txt
+            ${{ github.workspace }}/artifacts/SHA256SUMS.txt
+          name: OrangeFox Recovery R12.1 for Cubot P50 (${{ env.RELEASE_TAG }})
+          tag_name: ${{ env.RELEASE_TAG }}
+          body: |
+            ## 🦊 OrangeFox Recovery R12.1 for Cubot P50 (`marlon`)
+            
+            **Release Tag:** `${{ env.RELEASE_TAG }}`  
+            **Build Date:** `${{ env.BUILD_DATE }}`  
+            **Maintainer:** kelexine  
+            **Status:** Unofficial / FBE v2 Decryption & Dynamic Super Supported
+
+            ---
+
+            ### 🚀 Highlights & Features
+            - **OrangeFox R12.1 Base**: Native Fox theme engine, advanced console, zip installer engine, and Magiskboot integration.
+            - **Display & Notch Adaptation**: Correct layout padding and waterdrop notch alignment (`OF_SCREEN_H=1520`, `OF_STATUS_H=80`, `OF_CLOCK_POS=1`).
+            - **TrustKernel TEE Keymaster & Gatekeeper**: Hardware-backed `/data` decryption (FBE v2 AES-256-XTS + CTS).
+            - **Dynamic Super Partitions**: Full logical partition management for `system`, `vendor`, and `product`.
+            - **Full GNU Toolchain**: Built-in `bash`, `nano`, `tar`, `sed`, `xz` binaries.
+            - **Complete Radio & NVRAM Backup**: Full backup and restore support for `NVRAM`, `NVDATA`, `NVCFG`, `protect_f`, `protect_s`, and `proinfo`.
+
+            ---
+
+            ### ⚡ Flashing Instructions
+
+            #### Option A: Flash via Fastboot
+            ```bash
+            # 1. Reboot device to fastboot/bootloader mode:
+            adb reboot bootloader
+
+            # 2. Disable Android Verified Boot (AVB) verification flags:
+            fastboot --disable-verity --disable-verification flash vbmeta vbmeta.img
+
+            # 3. Flash OrangeFox recovery image:
+            fastboot flash recovery recovery.img
+
+            # 4. Reboot directly into recovery:
+            fastboot reboot recovery
+            ```
+
+            #### Option B: Flash via Existing Custom Recovery
+            - Copy `OrangeFox-marlon-*.zip` to your MicroSD or internal storage.
+            - Boot into your existing recovery and flash the zip package directly.
+
+            ---
+
+            ### 🔒 Checksums
+            Please verify artifact integrity before flashing using the attached `SHA256SUMS.txt` or `MD5SUMS.txt`.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
