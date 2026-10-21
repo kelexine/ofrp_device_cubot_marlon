@@ -36,6 +36,12 @@ if [ -z "$1" ] && [ -z "$FOX_BUILD_DEVICE" ]; then
 fi
 
 if [ "$1" = "$FDEVICE" ] || [ "$FOX_BUILD_DEVICE" = "$FDEVICE" ]; then
+    # Defensive cleanup of obsolete/incompatible variables from shell env
+    unset FOX_VERSION
+    unset OF_SUPPORT_ALL_BLOCK_OTA_UPDATES
+    unset OF_FIX_OTA_UPDATE_MANUAL_FLASHING
+    unset OF_FIX_OTA_UPDATE_MANUAL_FLASH_ERROR
+
     # Release / Metadata
     export OF_MAINTAINER="kelexine"
     export FOX_BUILD_TYPE="Unofficial"
