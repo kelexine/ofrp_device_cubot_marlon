@@ -39,7 +39,11 @@ if [ "$1" = "$FDEVICE" ] || [ "$FOX_BUILD_DEVICE" = "$FDEVICE" ]; then
     # Release / Metadata
     export OF_MAINTAINER="kelexine"
     export FOX_BUILD_TYPE="Unofficial"
-    export FOX_VERSION="R12.1_0"
+    export FOX_MAINTAINER_PATCH_VERSION="1"
+
+    # Device
+    export FOX_BUILD_DEVICE="marlon"
+    export FOX_DEVICE_MODEL="marlon"
 
     # Display / Notch (720x1520, 19:9, centered waterdrop notch)
     export OF_SCREEN_H=1520
@@ -49,14 +53,16 @@ if [ "$1" = "$FDEVICE" ] || [ "$FOX_BUILD_DEVICE" = "$FDEVICE" ]; then
     export OF_CLOCK_POS=1
     export OF_ALLOW_DISABLE_NAVBAR=1
 
+    # Disable Xiaomi/MIUI-specific features for non-MIUI MTK devices
+    export OF_DISABLE_MIUI_SPECIFIC_FEATURES=1
+    export OF_NO_MIUI_PATCH_WARNING=1
+
     # Crypto / Keymaster / Security
     export OF_DEFAULT_KEYMASTER_VERSION="4.0"
     export OF_USE_MAGISKBOOT=1
     export OF_USE_MAGISKBOOT_FOR_ALL_PATCHES=1
     export OF_DONT_PATCH_ON_FRESH_INSTALLATION=1
     export OF_NO_TREBLE_COMPATIBILITY_CHECK=1
-    export OF_SUPPORT_ALL_BLOCK_OTA_UPDATES=1
-    export OF_FIX_OTA_UPDATE_MANUAL_FLASHING=1
 
     # Tools & GNU Shell
     export FOX_USE_BASH_SHELL=1
