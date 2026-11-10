@@ -184,10 +184,12 @@ jobs:
 
       - name: Compile Recovery Image
         run: |
-          source build/envsetup.sh
+          export FOX_BUILD_DEVICE="${{ github.event.inputs.DEVICE_NAME }}"
           export ALLOW_MISSING_DEPENDENCIES=true
           export LC_ALL="C"
-          export FOX_BUILD_DEVICE="${{ github.event.inputs.DEVICE_NAME }}"
+          set +e
+          source build/envsetup.sh
+          set -e
           lunch ${{ github.event.inputs.MAKEFILE_NAME }}-eng
           mka adbd ${{ github.event.inputs.BUILD_TARGET }}image -j$(nproc --all)
         working-directory: ${{ env.WORKSPACE }}

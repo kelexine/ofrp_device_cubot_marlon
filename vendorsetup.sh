@@ -22,13 +22,16 @@
 FDEVICE="marlon"
 
 fox_get_target_device() {
-    local chkdev=$(echo "$BASH_SOURCE" | grep -w "$FDEVICE")
+    local chkdev=$(echo "$BASH_SOURCE" | grep -w "$FDEVICE" || true)
     if [ -n "$chkdev" ]; then
         FOX_BUILD_DEVICE="$FDEVICE"
     else
-        chkdev=$(set | grep BASH_ARGV | grep -w "$FDEVICE")
-        [ -n "$chkdev" ] && FOX_BUILD_DEVICE="$FDEVICE"
+        chkdev=$(set | grep BASH_ARGV | grep -w "$FDEVICE" || true)
+        if [ -n "$chkdev" ]; then
+            FOX_BUILD_DEVICE="$FDEVICE"
+        fi
     fi
+    return 0
 }
 
 if [ -z "$1" ] && [ -z "$FOX_BUILD_DEVICE" ]; then
@@ -90,3 +93,7 @@ if [ "$1" = "$FDEVICE" ] || [ "$FOX_BUILD_DEVICE" = "$FDEVICE" ]; then
     export ALLOW_MISSING_DEPENDENCIES=true
     export LC_ALL="C"
 fi
+
+# Register lunch targets
+add_lunch_combo ofox_marlon-eng
+add_lunch_combo ofox_marlon-userdebug

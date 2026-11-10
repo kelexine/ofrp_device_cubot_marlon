@@ -68,15 +68,14 @@ else
     TARGET_KERNEL_CLANG_PATH ?= $(BUILD_TOP)/prebuilts/clang/host/linux-x86/ndk-r30/bin
 endif
 
-# Kernel - prebuilt
-TARGET_FORCE_PREBUILT_KERNEL ?= false
+# DTB & DTBO packaging images
+TARGET_PREBUILT_DTB := $(DEVICE_PATH)/prebuilt/dtb.img
+BOARD_PREBUILT_DTBOIMAGE := $(DEVICE_PATH)/prebuilt/dtbo.img
+BOARD_MKBOOTIMG_ARGS += --dtb $(TARGET_PREBUILT_DTB)
+
+# Kernel - prebuilt (leave TARGET_FORCE_PREBUILT_KERNEL unset to compile from source)
 ifeq ($(TARGET_FORCE_PREBUILT_KERNEL),true)
 TARGET_PREBUILT_KERNEL := $(DEVICE_PATH)/prebuilt/kernel
-TARGET_PREBUILT_DTB := $(DEVICE_PATH)/prebuilt/dtb.img
-BOARD_MKBOOTIMG_ARGS += --dtb $(TARGET_PREBUILT_DTB)
-BOARD_INCLUDE_DTB_IN_BOOTIMG :=
-BOARD_PREBUILT_DTBOIMAGE := $(DEVICE_PATH)/prebuilt/dtbo.img
-BOARD_KERNEL_SEPARATED_DTBO :=
 endif
 
 # Partitions
