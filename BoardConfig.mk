@@ -54,8 +54,22 @@ BOARD_KERNEL_SEPARATED_DTBO := true
 TARGET_KERNEL_CONFIG := marlon_defconfig
 TARGET_KERNEL_SOURCE := kernel/cubot/marlon
 
+# Kernel Toolchain & Clang configuration
+TARGET_KERNEL_CLANG_COMPILE := true
+TARGET_KERNEL_LLVM_BINUTILS := true
+TARGET_KERNEL_ADDITIONAL_FLAGS := LLVM=1 LLVM_IAS=1 TARGET_PRODUCT=marlon MTK_PLATFORM=mt6765
+
+# Detect NDK r30 Clang path (workspace prebuilts or local Android NDK)
+ifneq ($(wildcard $(BUILD_TOP)/prebuilts/clang/host/linux-x86/ndk-r30/bin/clang),)
+    TARGET_KERNEL_CLANG_PATH := $(BUILD_TOP)/prebuilts/clang/host/linux-x86/ndk-r30/bin
+else ifneq ($(wildcard $(HOME)/Android/Ndk/android-ndk-r30/toolchains/llvm/prebuilt/linux-x86_64/bin/clang),)
+    TARGET_KERNEL_CLANG_PATH := $(HOME)/Android/Ndk/android-ndk-r30/toolchains/llvm/prebuilt/linux-x86_64/bin
+else
+    TARGET_KERNEL_CLANG_PATH ?= $(BUILD_TOP)/prebuilts/clang/host/linux-x86/ndk-r30/bin
+endif
+
 # Kernel - prebuilt
-TARGET_FORCE_PREBUILT_KERNEL := true
+TARGET_FORCE_PREBUILT_KERNEL ?= false
 ifeq ($(TARGET_FORCE_PREBUILT_KERNEL),true)
 TARGET_PREBUILT_KERNEL := $(DEVICE_PATH)/prebuilt/kernel
 TARGET_PREBUILT_DTB := $(DEVICE_PATH)/prebuilt/dtb.img

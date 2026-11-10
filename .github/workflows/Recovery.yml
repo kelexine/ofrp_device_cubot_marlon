@@ -19,6 +19,22 @@ on:
         description: 'Device Tree Target Path'
         required: true
         default: 'device/cubot/marlon'
+      KERNEL_TREE_URL:
+        description: 'Kernel Tree Git Repository URL'
+        required: true
+        default: 'https://github.com/kelexine/android_kernel_cubot_mt6765'
+      KERNEL_TREE_BRANCH:
+        description: 'Kernel Tree Branch'
+        required: true
+        default: 'marlon-cip'
+      KERNEL_PATH:
+        description: 'Kernel Target Path'
+        required: true
+        default: 'kernel/cubot/marlon'
+      NDK_URL:
+        description: 'Android NDK r30 Archive URL'
+        required: true
+        default: 'https://dl.google.com/android/repository/android-ndk-r30-linux.zip'
       DEVICE_NAME:
         description: 'Device Codename'
         required: true
@@ -48,6 +64,10 @@ jobs:
           echo "Device Tree URL    : ${{ github.event.inputs.DEVICE_TREE_URL }}"
           echo "Device Tree Branch : ${{ github.event.inputs.DEVICE_TREE_BRANCH }}"
           echo "Device Path        : ${{ github.event.inputs.DEVICE_PATH }}"
+          echo "Kernel Tree URL    : ${{ github.event.inputs.KERNEL_TREE_URL }}"
+          echo "Kernel Tree Branch : ${{ github.event.inputs.KERNEL_TREE_BRANCH }}"
+          echo "Kernel Path        : ${{ github.event.inputs.KERNEL_PATH }}"
+          echo "NDK URL            : ${{ github.event.inputs.NDK_URL }}"
           echo "Device Name        : ${{ github.event.inputs.DEVICE_NAME }}"
           echo "Product Makefile   : ${{ github.event.inputs.MAKEFILE_NAME }}"
           echo "Build Target       : ${{ github.event.inputs.BUILD_TARGET }}image"
@@ -76,9 +96,9 @@ jobs:
           sudo apt-get update -yq
           DEBIAN_FRONTEND=noninteractive sudo apt-get install -yq --no-install-recommends \
               bc bison build-essential ccache curl flex g++-multilib gcc-multilib git gnupg gperf \
-              imagemagick lib32ncurses-dev lib32readline-dev lib32z1-dev libelf-dev liblz4-tool \
+              imagemagick kmod lib32ncurses-dev lib32readline-dev lib32z1-dev libelf-dev liblz4-tool \
               libncurses6 libncurses-dev libsdl1.2-dev libssl-dev libxml2 libxml2-utils lzop \
-              pngcrush rsync schedtool squashfs-tools xsltproc zip zlib1g-dev python3 tar openjdk-11-jdk patch
+              pngcrush python-is-python3 python3 rsync schedtool squashfs-tools tar unzip xsltproc zip zlib1g-dev openjdk-11-jdk patch
           sudo update-java-alternatives -s java-1.11.0-openjdk-amd64 || true
 
       - name: Install Google Repo Tool
@@ -105,10 +125,29 @@ jobs:
 
           echo "WORKSPACE=$WORKSPACE_DIR" >> $GITHUB_ENV
 
+      - name: Set up Android NDK r30 Toolchain for Kernel
+        run: |
+          echo "Downloading Android NDK r30..."
+          mkdir -p /tmp/ndk
+          curl -sSL -o /tmp/ndk/ndk-r30.zip "${{ github.event.inputs.NDK_URL }}"
+          echo "Extracting Android NDK r30..."
+          unzip -q /tmp/ndk/ndk-r30.zip -d /tmp/ndk
+          mkdir -p "${{ env.WORKSPACE }}/prebuilts/clang/host/linux-x86"
+          mv /tmp/ndk/android-ndk-r30/toolchains/llvm/prebuilt/linux-x86_64 "${{ env.WORKSPACE }}/prebuilts/clang/host/linux-x86/ndk-r30"
+          rm -rf /tmp/ndk
+          echo "Verified NDK r30 Clang compiler:"
+          "${{ env.WORKSPACE }}/prebuilts/clang/host/linux-x86/ndk-r30/bin/clang" --version
+
       - name: Clone Device Tree
         run: |
           rm -rf ./${{ github.event.inputs.DEVICE_PATH }}
           git clone --depth=1 ${{ github.event.inputs.DEVICE_TREE_URL }} -b ${{ github.event.inputs.DEVICE_TREE_BRANCH }} ./${{ github.event.inputs.DEVICE_PATH }}
+        working-directory: ${{ env.WORKSPACE }}
+
+      - name: Clone Kernel Tree
+        run: |
+          rm -rf ./${{ github.event.inputs.KERNEL_PATH }}
+          git clone --depth=1 ${{ github.event.inputs.KERNEL_TREE_URL }} -b ${{ github.event.inputs.KERNEL_TREE_BRANCH }} ./${{ github.event.inputs.KERNEL_PATH }}
         working-directory: ${{ env.WORKSPACE }}
 
       - name: Apply Compatibility & Stability Patches

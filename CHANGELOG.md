@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Added
+- **In-Tree Kernel Compilation with Android NDK r30**:
+  - Configured inline kernel build from `kernel/cubot/marlon` using `marlon_defconfig`.
+  - Added Clang toolchain configuration in `BoardConfig.mk` with `TARGET_KERNEL_CLANG_COMPILE := true`, `TARGET_KERNEL_LLVM_BINUTILS := true`, and `TARGET_KERNEL_ADDITIONAL_FLAGS := LLVM=1 LLVM_IAS=1 TARGET_PRODUCT=marlon MTK_PLATFORM=mt6765`.
+  - Added auto-detection for Android NDK r30 Clang toolchain via `TARGET_KERNEL_CLANG_PATH`.
+  - Updated GitHub Actions `Recovery.yml` to clone the custom kernel tree (`kelexine/android_kernel_cubot_mt6765`, branch `marlon-cip`) and install Google Android NDK r30 for compiling the kernel while keeping the rest of OrangeFox on standard build toolchains.
+
+---
+
 ## [1.2.0] - 2026-10-14
 
 ### Changed
