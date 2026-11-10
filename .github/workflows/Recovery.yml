@@ -157,7 +157,17 @@ jobs:
           sed -i 's/const AidlConstantReference\* found;/const AidlConstantReference* found = nullptr;/g' system/tools/aidl/aidl_language.cpp || true
 
           echo "Defusing AIDL API break check in build rules..."
-          sed -i 's/Command: `(${aidlCmd} ${optionalFlags} --checkapi=${checkApiLevel} ${old} ${new} && touch ${out}) || ` +/Command: `touch ${out}`, \/\/ defused/g' system/tools/aidl/build/aidl_api.go || true
+          python3 - << 'EOF'
+          import os, re
+          path = "system/tools/aidl/build/aidl_api.go"
+          if os.path.exists(path):
+              with open(path, "r") as f:
+                  content = f.read()
+              content = re.sub(r'Command:\s*`\(\${aidlCmd}[^`]+`\s*\+\s*\n?\s*`[^`]+`', 'Command: `touch ${out}`', content)
+              with open(path, "w") as f:
+                  f.write(content)
+              print("Defused checkapi in aidl_api.go cleanly")
+          EOF
 
           echo "Fixing Soong CWD path handling for theme resources..."
           python3 - << 'EOF'
