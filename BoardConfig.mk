@@ -60,11 +60,11 @@ TARGET_KERNEL_ADDITIONAL_FLAGS := LLVM=1 LLVM_IAS=1 TARGET_PRODUCT=marlon MTK_PL
 
 # Detect NDK r30 Clang path (workspace prebuilts or local Android NDK)
 ifneq ($(wildcard $(BUILD_TOP)/prebuilts/clang/host/linux-x86/ndk-r30/bin/clang),)
-    TARGET_KERNEL_CLANG_PATH := $(BUILD_TOP)/prebuilts/clang/host/linux-x86/ndk-r30/bin
+    TARGET_KERNEL_CLANG_PATH := $(BUILD_TOP)/prebuilts/clang/host/linux-x86/ndk-r30
 else ifneq ($(wildcard $(HOME)/Android/Ndk/android-ndk-r30/toolchains/llvm/prebuilt/linux-x86_64/bin/clang),)
-    TARGET_KERNEL_CLANG_PATH := $(HOME)/Android/Ndk/android-ndk-r30/toolchains/llvm/prebuilt/linux-x86_64/bin
+    TARGET_KERNEL_CLANG_PATH := $(HOME)/Android/Ndk/android-ndk-r30/toolchains/llvm/prebuilt/linux-x86_64
 else
-    TARGET_KERNEL_CLANG_PATH ?= $(BUILD_TOP)/prebuilts/clang/host/linux-x86/ndk-r30/bin
+    TARGET_KERNEL_CLANG_PATH ?= $(BUILD_TOP)/prebuilts/clang/host/linux-x86/ndk-r30
 endif
 
 # DTBO prebuilt packaging image

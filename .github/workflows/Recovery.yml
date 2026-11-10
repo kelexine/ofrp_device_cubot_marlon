@@ -148,7 +148,7 @@ jobs:
       - name: Clone Kernel Tree
         run: |
           rm -rf ./${{ github.event.inputs.KERNEL_PATH }}
-          git clone --depth=1 ${{ github.event.inputs.KERNEL_TREE_URL }} -b ${{ github.event.inputs.KERNEL_TREE_BRANCH }} ./${{ github.event.inputs.KERNEL_PATH }}
+          git clone --depth=1 --recurse-submodules --shallow-submodules ${{ github.event.inputs.KERNEL_TREE_URL }} -b ${{ github.event.inputs.KERNEL_TREE_BRANCH }} ./${{ github.event.inputs.KERNEL_PATH }}
         working-directory: ${{ env.WORKSPACE }}
 
       - name: Apply Compatibility & Stability Patches
