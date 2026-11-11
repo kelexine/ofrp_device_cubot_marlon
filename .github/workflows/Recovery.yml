@@ -213,7 +213,6 @@ jobs:
         run: |
           export FOX_BUILD_DEVICE="${{ github.event.inputs.DEVICE_NAME }}"
           export ALLOW_MISSING_DEPENDENCIES=true
-          export TEMPORARY_DISABLE_PATH_RESTRICTIONS=true
           export LC_ALL="C"
           set +e
           source build/envsetup.sh
