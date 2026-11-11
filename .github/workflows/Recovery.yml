@@ -99,7 +99,7 @@ jobs:
               bc bison build-essential ccache curl flex g++-multilib gcc-multilib git gnupg gperf \
               imagemagick kmod lib32ncurses-dev lib32readline-dev lib32z1-dev libelf-dev lz4 \
               libncurses6 libncurses-dev libsdl1.2-dev libssl-dev libxml2-utils lzop \
-              pngcrush python-is-python3 python3 rsync schedtool squashfs-tools tar unzip xsltproc zip zlib1g-dev openjdk-11-jdk patch bpftool
+              pngcrush python-is-python3 python3 rsync schedtool squashfs-tools tar unzip xsltproc zip zlib1g-dev openjdk-11-jdk patch bpftool dwarves
           sudo update-java-alternatives -s java-1.11.0-openjdk-amd64 || true
 
       - name: Install Google Repo Tool
@@ -191,21 +191,27 @@ jobs:
           sed -i 's|sed -i "s/{themeversion}/$(TW_THEME_VERSION)\/" $(TARGET_RECOVERY_ROOT_OUT)\/twres\/splash.xml;|if [ -f $(TARGET_RECOVERY_ROOT_OUT)/twres/splash.xml ]; then sed -i "s/{themeversion}/$(TW_THEME_VERSION)/" $(TARGET_RECOVERY_ROOT_OUT)/twres/splash.xml; fi;|g' bootable/recovery/Android.mk || true
           sed -i 's|sed -i "s/{themeversion}/$(TW_THEME_VERSION)\/" $(TARGET_RECOVERY_ROOT_OUT)\/twres\/ui.xml;|if [ -f $(TARGET_RECOVERY_ROOT_OUT)/twres/ui.xml ]; then sed -i "s/{themeversion}/$(TW_THEME_VERSION)/" $(TARGET_RECOVERY_ROOT_OUT)/twres/ui.xml; fi;|g' bootable/recovery/Android.mk || true
 
-          echo "Whitelisting bpftool in Soong Path Configuration..."
+          echo "Whitelisting bpftool and pahole in Soong Path Configuration..."
           if [ -f build/soong/ui/build/paths/config.go ]; then
               python3 -c '
           path = "build/soong/ui/build/paths/config.go"
           with open(path, "r") as f:
               s = f.read()
-          if "\"bpftool\":" not in s:
-              s = s.replace("\"bash\":", "\"bpftool\": Allowed,\n\t\"bash\":")
-              with open(path, "w") as f:
-                  f.write(s)
-              print("Successfully whitelisted bpftool in config.go")
+          for tool in ["bpftool", "pahole"]:
+              if f"\"{tool}\":" not in s:
+                  s = s.replace("\"bash\":", f"\"{tool}\": Allowed,\n\t\"bash\":")
+          with open(path, "w") as f:
+              f.write(s)
+          print("Successfully whitelisted bpftool and pahole in config.go")
           '
           fi
-          if [ -f /usr/bin/bpftool ] && [ -d prebuilts/clang/host/linux-x86/ndk-r30/bin ]; then
-              ln -sf /usr/bin/bpftool prebuilts/clang/host/linux-x86/ndk-r30/bin/bpftool
+          if [ -d prebuilts/clang/host/linux-x86/ndk-r30/bin ]; then
+              if [ -f /usr/bin/bpftool ]; then
+                  ln -sf /usr/bin/bpftool prebuilts/clang/host/linux-x86/ndk-r30/bin/bpftool
+              fi
+              if [ -f /usr/bin/pahole ]; then
+                  ln -sf /usr/bin/pahole prebuilts/clang/host/linux-x86/ndk-r30/bin/pahole
+              fi
           fi
         working-directory: ${{ env.WORKSPACE }}
 
