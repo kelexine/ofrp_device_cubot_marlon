@@ -1,3 +1,6 @@
+system                                     		/system                erofs               ro wait,logical
+vendor                                     		/vendor                erofs               ro wait,logical
+product                                    		/product               erofs               ro wait,logical
 system                                     		/system                ext4                ro wait,logical
 vendor                                     		/vendor                ext4                ro wait,logical
 product                                    		/product               ext4                ro wait,logical

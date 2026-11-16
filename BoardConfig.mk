@@ -45,18 +45,33 @@ BOARD_KERNEL_CMDLINE := bootopt=64S3,32N2,64N2
 BOARD_KERNEL_PAGESIZE := 2048
 BOARD_RAMDISK_OFFSET := 0x11a88000
 BOARD_KERNEL_TAGS_OFFSET := 0x07808000
+BOARD_DTB_OFFSET := 0x07808000
 BOARD_MKBOOTIMG_ARGS += --header_version $(BOARD_BOOTIMG_HEADER_VERSION)
 BOARD_MKBOOTIMG_ARGS += --ramdisk_offset $(BOARD_RAMDISK_OFFSET)
 BOARD_MKBOOTIMG_ARGS += --tags_offset $(BOARD_KERNEL_TAGS_OFFSET)
+BOARD_MKBOOTIMG_ARGS += --dtb_offset $(BOARD_DTB_OFFSET)
 BOARD_KERNEL_IMAGE_NAME := Image.gz
-BOARD_INCLUDE_DTB_IN_BOOTIMG := true
 TARGET_KERNEL_CONFIG := marlon_defconfig
 TARGET_KERNEL_SOURCE := kernel/cubot/marlon
 
 # Kernel Toolchain & Clang configuration
 TARGET_KERNEL_CLANG_COMPILE := true
 TARGET_KERNEL_LLVM_BINUTILS := true
-TARGET_KERNEL_ADDITIONAL_FLAGS := LLVM=1 LLVM_IAS=1 TARGET_PRODUCT=marlon MTK_PLATFORM=mt6765
+TARGET_KERNEL_ADDITIONAL_FLAGS := \
+    LLVM=1 \
+    LLVM_IAS=1 \
+    TARGET_PRODUCT=marlon \
+    MTK_PLATFORM=mt6765 \
+    KCFLAGS="-Wno-error -Wno-unused-command-line-argument -Wno-default-const-init-field-unsafe -Wno-default-const-init-var-unsafe"
+
+ifneq ($(wildcard /usr/bin/pahole),)
+    TARGET_KERNEL_ADDITIONAL_FLAGS += PAHOLE=/usr/bin/pahole
+endif
+ifneq ($(wildcard /usr/sbin/bpftool),)
+    TARGET_KERNEL_ADDITIONAL_FLAGS += BPFTOOL=/usr/sbin/bpftool
+else ifneq ($(wildcard /usr/bin/bpftool),)
+    TARGET_KERNEL_ADDITIONAL_FLAGS += BPFTOOL=/usr/bin/bpftool
+endif
 
 # Detect NDK r30 Clang path (workspace prebuilts or local Android NDK)
 ifneq ($(wildcard $(BUILD_TOP)/prebuilts/clang/host/linux-x86/ndk-r30/bin/clang),)
@@ -70,12 +85,17 @@ endif
 # DTBO prebuilt packaging image
 BOARD_PREBUILT_DTBOIMAGE := $(DEVICE_PATH)/prebuilt/dtbo.img
 
-# Kernel & DTB - prebuilt fallback (leave TARGET_FORCE_PREBUILT_KERNEL unset to compile from source)
+# Kernel & DTB - build from source by default; stock prebuilt is used only as fallback
 ifeq ($(TARGET_FORCE_PREBUILT_KERNEL),true)
-TARGET_PREBUILT_KERNEL := $(DEVICE_PATH)/prebuilt/kernel
-TARGET_PREBUILT_DTB := $(DEVICE_PATH)/prebuilt/dtb.img
-BOARD_MKBOOTIMG_ARGS += --dtb $(TARGET_PREBUILT_DTB)
-BOARD_INCLUDE_DTB_IN_BOOTIMG :=
+    TARGET_PREBUILT_KERNEL := $(DEVICE_PATH)/prebuilt/kernel
+    TARGET_PREBUILT_DTB := $(DEVICE_PATH)/prebuilt/dtb.img
+    BOARD_MKBOOTIMG_ARGS += --dtb $(TARGET_PREBUILT_DTB)
+else ifeq ($(wildcard $(TARGET_KERNEL_SOURCE)),)
+    TARGET_PREBUILT_KERNEL := $(DEVICE_PATH)/prebuilt/kernel
+    TARGET_PREBUILT_DTB := $(DEVICE_PATH)/prebuilt/dtb.img
+    BOARD_MKBOOTIMG_ARGS += --dtb $(TARGET_PREBUILT_DTB)
+else
+    BOARD_MKBOOTIMG_ARGS += --dtb $(PRODUCT_OUT)/dtb.img
 endif
 
 # Partitions
@@ -128,19 +148,25 @@ BOARD_USES_MTK_HARDWARE := true
 # Verified Boot
 BOARD_AVB_ENABLE := true
 BOARD_AVB_MAKE_VBMETA_IMAGE_ARGS += --flags 3
-BOARD_AVB_RECOVERY_KEY_PATH := external/avb/test/data/testkey_rsa4096.pem
+ifneq ($(wildcard vendor/lineage-priv/keys/avb.pem),)
+    BOARD_AVB_RECOVERY_KEY_PATH := vendor/lineage-priv/keys/avb.pem
+    BOARD_AVB_VBMETA_SYSTEM_KEY_PATH := vendor/lineage-priv/keys/avb.pem
+    BOARD_AVB_VBMETA_VENDOR_KEY_PATH := vendor/lineage-priv/keys/avb.pem
+else
+    BOARD_AVB_RECOVERY_KEY_PATH := external/avb/test/data/testkey_rsa4096.pem
+    BOARD_AVB_VBMETA_SYSTEM_KEY_PATH := external/avb/test/data/testkey_rsa4096.pem
+    BOARD_AVB_VBMETA_VENDOR_KEY_PATH := external/avb/test/data/testkey_rsa4096.pem
+endif
 BOARD_AVB_RECOVERY_ALGORITHM := SHA256_RSA4096
 BOARD_AVB_RECOVERY_ROLLBACK_INDEX := 1
 BOARD_AVB_RECOVERY_ROLLBACK_INDEX_LOCATION := 1
 
 BOARD_AVB_VBMETA_SYSTEM := product system
-BOARD_AVB_VBMETA_SYSTEM_KEY_PATH := external/avb/test/data/testkey_rsa4096.pem
 BOARD_AVB_VBMETA_SYSTEM_ALGORITHM := SHA256_RSA4096
 BOARD_AVB_VBMETA_SYSTEM_ROLLBACK_INDEX := 1
 BOARD_AVB_VBMETA_SYSTEM_ROLLBACK_INDEX_LOCATION := 2
 
 BOARD_AVB_VBMETA_VENDOR := vendor
-BOARD_AVB_VBMETA_VENDOR_KEY_PATH := external/avb/test/data/testkey_rsa4096.pem
 BOARD_AVB_VBMETA_VENDOR_ALGORITHM := SHA256_RSA4096
 BOARD_AVB_VBMETA_VENDOR_ROLLBACK_INDEX := 1
 BOARD_AVB_VBMETA_VENDOR_ROLLBACK_INDEX_LOCATION := 3
